@@ -1,7 +1,7 @@
 const state = {
     view: null,
 
-    represent(model) {
+    represent(model, options = {}) {
         const header = this.view.header(this.getHeaderData(model));
         const footer = this.view.footer();
         let content
@@ -16,13 +16,23 @@ const state = {
             } else {
                 content = this.view.signin(signinData);
             }
+        } else if (model.isAtArticleDetails()) {
+            content = this.view.articleDetails(this.getArticleDetailsData(model));
+        } else if (model.isAtEditor()) {
+            let articleCreated = options.articleCreated;
+
+            if (articleCreated) {
+                this.router.goToArticle(model.editor.responseArticle.slug);
+            } else {
+                content = this.view.editor(this.getEditorData());
+            }
         }
 
         this.view.render([header, content, footer]);
+        this.nextAction(model, options);
     },
 
-    nextAction(model) {
-
+    nextAction(model, options) {
     },
 
     getSignInData(model) {
@@ -112,6 +122,43 @@ const state = {
         data.currentPage = currentPage;
 
         return data;
+    },
+
+    getArticleDetailsData(model) {
+        const {
+            isLoading,
+            profile: {
+                image,
+                username,
+                isAuthenticated
+            },
+            articleDetails: {
+                article,
+                comments
+            }
+        } = model;
+
+        let isOwner = false;
+
+        if (article.author && article.author.username === username) {
+            isOwner = true;
+        }
+
+        return {
+            isLoading,
+            isAuthenticated,
+            user: {
+                image,
+                username
+            },
+            article,
+            comments,
+            isOwner
+        };
+    },
+
+    getEditorData() {
+        return {};
     },
 
     _populatePaginator(itemsCount, itemsPerPage) {

@@ -53,6 +53,31 @@ export const getArticles = ({ limit = 20, offset = 0, tag }) => {
     return axios.get(endPoint, { params });
 };
 
+export const getArticle = (token = undefined, slug) => {
+    const endPoint = getEndPoint(`articles/${slug}`);
+
+    let payload = {};
+    if (token) {
+        payload = {
+            headers: getAuthHeader(token)
+        };
+    }
+
+    return axios.get(endPoint, payload);
+};
+
+export const getComments = (token = undefined, slug) => {
+    const endPoint= getEndPoint(`articles/${slug}/comments`);
+    let payload = {};
+    if (token) {
+        payload = {
+            headers: getAuthHeader(token)
+        };
+    }
+
+    return axios.get(endPoint, payload);
+};
+
 export const getFeeds = ({limit = 20, offset = 0, token}) => {
     const endPoint = getEndPoint('articles/feed');
     const params = { limit, offset };
@@ -60,7 +85,6 @@ export const getFeeds = ({limit = 20, offset = 0, token}) => {
         params,
         headers: getAuthHeader(token)
     };
-    console.log(payload);
 
     return axios.get(endPoint, { ...payload });
 };
@@ -69,11 +93,66 @@ export const getTags = () => {
     const endPoint = getEndPoint('tags');
 
     return axios.get(endPoint);
-}
+};
+
+const getFollowEndPoint = (username) => {
+    return getEndPoint(`profiles/${username}/follow`);
+};
+
+export const follow = (username, token) => {
+    const endPoint = getFollowEndPoint(username);
+
+    return axios.post(endPoint, {}, { headers: getAuthHeader(token) });
+};
+
+export const unfollow = (username, token) => {
+    const endPoint = getFollowEndPoint(username);
+
+    return axios.delete(endPoint, { headers: getAuthHeader(token) });
+};
+
+const getFavoriteEndPoint = (slug) => {
+    return getEndPoint(`articles/${slug}/favorite`);
+};
+
+export const favorite = (slug, token) => {
+    const endPoint = getFavoriteEndPoint(slug);
+
+    return axios.post(endPoint, null, { headers: getAuthHeader(token) });
+};
+
+export const unfavorite = (slug, token) => {
+    const endPoint = getFavoriteEndPoint(slug);
+
+    return axios.delete(endPoint, { headers: getAuthHeader(token) });
+};
+
+export const createArticle = (token, data = {}) => {
+    const endPoint = getEndPoint('/articles');
+    const {
+        articleTitle: title,
+        articleDesc: description,
+        articleBody: body,
+        tags: tagList
+    } = data;
+
+    return axios.post(
+        endPoint,
+        {
+            article: {
+                title,
+                description,
+                body,
+                tagList
+            }
+        },
+        { headers: getAuthHeader(token) }
+    );
+};
 
 export const all = (...promises) => {
     return axios.all(promises)
                 .then(axios.spread((...data) => {
                     return data;
                 }));
-}
+};

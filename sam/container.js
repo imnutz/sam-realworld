@@ -25,6 +25,7 @@ const Container = {
     _wireComponents() {
         this.action.present = this.model.present.bind(this.model);
         this.action.storage = this.storage;
+        this.action.restService = this.restService;
 
         this.model.represent = this.state.represent.bind(this.state);
         this.model.restService = this.restService;
@@ -41,7 +42,9 @@ const Container = {
             '',
             '/home',
             '/signin',
-            '/settings'
+            '/settings',
+            '/article/{slug}',
+            '/editor/:slug:'
         ], this.dispatch.bind(this, 'navigate'));
     },
 

@@ -247,6 +247,7 @@ const _createArticle = (data) => {
         favoriteCount,
         description,
         body,
+        slug,
         tagList: tags = []
     } = data;
 
@@ -264,7 +265,7 @@ const _createArticle = (data) => {
                     <i class="ion-heart"></i> ${favoriteCount}
                 </button>
             </div>
-            <a href="" class="preview-link">
+            <a href=${"#/article/" + slug} class="preview-link">
                 <h1>${description}</h1>
                 <p>${body}</p>
                 <span>Read more...</span>
@@ -293,11 +294,11 @@ const _createPaginator = (dispatch, itemsPerPage, currentPage) => {
 
         const pageIndex = Number(evt.target.text);
 
-        dispatch('paginate', pageIndex);
+        dispatch('paginate', pageIndex - 1);
     }
 
     for (let idx = 0; idx < itemsPerPage; idx++) {
-        const linkValue = idx + 1;
+        const linkValue = idx;
         const cssClasses = ['page-item'];
 
         if (linkValue === currentPage) {
@@ -420,6 +421,295 @@ export const SignIn = (dispatch, data = {}) => {
                             <button class="btn btn-lg btn-primary pull-xs-right" onclick=${submitHandler}>Sign in</button>
                         </form>
                     </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+const _createArticleMeta = (dispatch, data = {}) => {
+    const favoriteHandler = (evt) => {
+        dispatch('favorite');
+    };
+
+    const unfavoriteHandler = (evt) => {
+        dispatch('unfavorite');
+    };
+
+    const followHandler = (evt) => {
+        dispatch('follow', username);
+    };
+
+    const unfollowHandler = (evt) => {
+        dispatch('unfollow', username);
+    }
+
+    const editHandler = (evt) => {
+        dispatch('editArticle');
+    }
+
+    const deleteHandler = (evt) => {
+        dispatch('deleteArticle');
+    }
+
+    const {
+        title,
+        favorited,
+        favoritesCount,
+        author: {
+            username,
+            image,
+            following
+        }
+    } = data.article;
+
+    const isOwner = data.isOwner;
+
+    const followLabel = isOwner ? 'Edit article' :
+                        !following ? `Follow ${username}` : `Unfollow ${username}`;
+    const favoriteLabel = isOwner ? 'Delete article' :
+                          !favorited ? `Favorite Post (${favoritesCount})` : `Unfavorite Post (${favoritesCount})`;
+
+    const followOrUnfollow = isOwner ? editHandler :
+                             !following ? followHandler : unfollowHandler;
+    const favoriteOrUnfavorite = isOwner ? deleteHandler :
+                                 !favorited ? favoriteHandler : unfavoriteHandler;
+
+    return hyperHTML.wire()`
+        <div class="article-meta">
+            <a href="">
+                <img src=${image} />
+            </a>
+            <div class="info">
+                <a href="" class="author">${username}</a>
+                <span class="date">January 20th</span>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" onclick=${followOrUnfollow}>
+                <i class="ion-plus-round"></i>
+                &nbsp; ${followLabel}
+            </button>
+            &nbsp;&nbsp;
+            <button class="btn btn-sm btn-outline-primary" onclick=${favoriteOrUnfavorite}>
+                <i class="ion-heart"></i>
+                &nbsp; ${favoriteLabel}
+            </button>
+        </div>
+    `;
+}
+
+const _createComments = (user, comments = []) => {
+    return comments.map(comment => {
+        let modOptions;
+
+        const {
+            author: {
+                image,
+                username,
+                createdAt
+            },
+            body
+        } = comment;
+
+        if (username === user) {
+            modOptions = hyperHTML.wire()`
+                <span class="mod-options">
+                    <i class="ion-edit"></i>
+                    <i class="ion-trash-a"></i>
+                </span>
+            `;
+        }
+
+        return hyperHTML.wire()`
+            <div class="card">
+                <div class="card-block">
+                    <p class="card-text">${body}</p>
+                </div>
+                <div class="card-footer">
+                    <a href="" class="comment-author">
+                        <img src=${image} class="comment-author-img" />
+                    </a>
+                    &nbsp;
+                    <a href="" class="comment-author">${username}</a>
+                    <span class="date-posted">${createdAt}</span>
+                    ${modOptions}
+                </div>
+            </div>
+        `;
+    });
+}
+
+const _createArticleDetails = (dispatch, data) => {
+    const {
+        isAuthenticated,
+        user: {
+            image,
+            username
+        },
+        comments
+    } = data;
+
+    let commentForm;
+    if (!isAuthenticated) {
+        commentForm = hyperHTML.wire()`
+            <p>
+                <a href="#/login">Sign in</a> or <a href="#/register">sign up</a> to add comments on this article.
+            </p>
+        `;
+    } else {
+        commentForm = hyperHTML.wire()`
+            <form class="card comment-form">
+                <div class="card-block">
+                    <textarea class="form-control" placeholder="Write a comment..." rows="3"></textarea>
+                </div>
+                <div class="card-footer">
+                    <img src=${image} class="comment-author-img" />
+                    <button class="btn btn-sm btn-primary">
+                        Post Comment
+                    </button>
+                </div>
+            </form>
+
+            ${_createComments(username, comments)}
+            <!-- <div class="card">
+                <div class="card-block">
+                    <p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
+                </div>
+                <div class="card-footer">
+                    <a href="" class="comment-author">
+                        <img src="http://i.imgur.com/Qr71crq.jpg" class="comment-author-img" />
+                    </a>
+                    &nbsp;
+                    <a href="" class="comment-author">Jacob Schmidt</a>
+                    <span class="date-posted">Dec 29th</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-block">
+                    <p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
+                </div>
+                <div class="card-footer">
+                    <a href="" class="comment-author">
+                        <img src="http://i.imgur.com/Qr71crq.jpg" class="comment-author-img" />
+                    </a>
+                    &nbsp;
+                    <a href="" class="comment-author">Jacob Schmidt</a>
+                    <span class="date-posted">Dec 29th</span>
+                    <span class="mod-options">
+                        <i class="ion-edit"></i>
+                        <i class="ion-trash-a"></i>
+                    </span>
+                </div>
+            </div> -->
+        `;
+    }
+
+    const {
+        title,
+        description,
+        body,
+    } = data.article;
+
+    return hyperHTML.wire()`
+        <div class="article-page">
+            <div class="banner">
+                <div class="container">
+                    <h1>${title}</h1>
+                    ${_createArticleMeta(dispatch, data)}
+                </div>
+            </div>
+
+            <div class="container page">
+
+                <div class="row article-content">
+                    <div class="col-md-12">
+                        <h2 id="introducing-ionic">${description}</h2>
+                        <p>${body}</p>
+                    </div>
+                </div>
+
+                <hr />
+
+                <div class="article-actions">
+                    ${_createArticleMeta(dispatch, data)}
+                </div>
+
+                <div class="row">
+
+                    <div class="col-xs-12 col-md-8 offset-md-2">
+                        ${commentForm}
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    `;
+
+};
+
+export const ArticleDetails = (dispatch, data = {}) => {
+    const { isLoading } = data;
+    const loading = hyperHTML.wire()`
+        <div class="article-page">
+            <div class="container page">
+                <span>Loading...</span>
+            </div>
+        </div>
+    `;
+
+    if (isLoading) {
+        return loading;
+    }
+
+    return _createArticleDetails(dispatch, data);
+}
+
+export const Editor = (dispatch, data = {}) => {
+    const setTitleHandler = (evt) => {
+        dispatch('setArticleTitle', evt.target.value);
+    };
+
+    const setDescriptionHandler = (evt) => {
+        dispatch('setArticleDesc', evt.target.value);
+    };
+
+    const setBodyHandler = (evt) => {
+        dispatch('setArticleBody', evt.target.value);
+    };
+
+    const setTagsHandler = (evt) => {
+        dispatch('setArticleTags', evt.target.value);
+    };
+
+    const publishHandler = (evt) => {
+        dispatch('publishArticle');
+    };
+
+    return hyperHTML.wire()`
+        <div class="editor-page">
+            <div class="container page">
+                <div class="row">
+                <div class="col-md-10 offset-md-1 col-xs-12">
+                    <form>
+                    <fieldset>
+                        <fieldset class="form-group">
+                            <input type="text" class="form-control form-control-lg" placeholder="Article Title" onchange=${setTitleHandler}>
+                        </fieldset>
+                        <fieldset class="form-group">
+                            <input type="text" class="form-control" placeholder="What's this article about?" onchange=${setDescriptionHandler}>
+                        </fieldset>
+                        <fieldset class="form-group">
+                            <textarea class="form-control" rows="8" placeholder="Write your article (in markdown)" onchange=${setBodyHandler}></textarea>
+                        </fieldset>
+                        <fieldset class="form-group">
+                            <input type="text" class="form-control" placeholder="Enter tags"><div class="tag-list" onchange=${setTagsHandler}></div>
+                        </fieldset>
+                        <button class="btn btn-lg pull-xs-right btn-primary" type="button" onclick=${publishHandler}>
+                            Publish Article
+                        </button>
+                    </fieldset>
+                    </form>
+                </div>
                 </div>
             </div>
         </div>

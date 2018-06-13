@@ -14,6 +14,7 @@ const routing = {
         crossroads.routed.add(function(request, data){
             handler(request, data);
         });
+        crossroads.normalizeFn = crossroads.NORM_AS_OBJECT;
 
         hasher.initialized.add(this._parseHash);
         hasher.changed.add(this._parseHash);
@@ -26,6 +27,18 @@ const routing = {
 
     goTo(hash) {
         hasher.setHash(hash);
+    },
+
+    goToArticle(slug) {
+        this.goTo(`article/${slug}`);
+    },
+
+    resetState() {
+        crossroads.resetState();
+    },
+
+    replaceHash(hash) {
+        hasher.replaceHash(hash);
     }
 };
 

@@ -6,5 +6,14 @@ export default {
     'submitLogin': 'submitLogin',
     'selectFeed': 'switchTab',
     'selectTag': 'selectTag',
-    'paginate': 'paginate'
+    'paginate': 'paginate',
+    'follow': 'follow',
+    'unfollow': 'unfollow',
+    'favorite': 'favorite',
+    'unfavorite': 'unfavorite',
+    'setArticleTitle': 'setArticleTitle',
+    'setArticleDesc': 'setArticleDesc',
+    'setArticleBody': 'setArticleBody',
+    'setArticleTags': 'setArticleTags',
+    'publishArticle': 'publishArticle'
 };

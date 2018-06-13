@@ -14,7 +14,7 @@ const menu = {
         },
         'newpost': {
             label: 'New Article',
-            hash: '#/newpost'
+            hash: '#/editor'
         },
         'settings': {
             label: 'Settings',
@@ -48,8 +48,13 @@ const home = {
     articles: [],
     articlesCount: 0,
     articlesPerPage: 10,
-    currentPage: 1,
+    currentPage: 0,
     tags: []
+};
+
+const articleDetails = {
+    article: {},
+    comments: []
 };
 
 const auth = {
@@ -58,9 +63,18 @@ const auth = {
     invalidInfo: false
 }
 
+const editor = {
+    articleTitle: null,
+    articleDesc: null,
+    articleBody: null,
+    tags: null,
+    errors: {}
+}
+
 const defaultState = {
     page: 'home',
-    isLoading: false
+    isLoading: false,
+    requiredProfileInfo: false
 };
 
 let model = {
@@ -68,6 +82,8 @@ let model = {
     profile,
     home,
     auth,
+    editor,
+    articleDetails,
     ...defaultState
 };
 
@@ -75,7 +91,7 @@ model.restService = null;
 model.storage = null;
 
 model.present = function present(proposal) {
-    const page = proposal.page;
+    const page = proposal.page !== undefined ? proposal.page : this.page;
 
     if (page !== this.page) {
         this.page = page;
@@ -85,6 +101,9 @@ model.present = function present(proposal) {
         this.profile.isAuthenticated = true;
         this.profile.token = proposal.token;
         this.home.selectedTab = 'yourfeed';
+
+        this.profile.email = proposal.email || '';
+        this.profile.username = proposal.username || '';
     }
 
     if (this.isAtHome()) {
@@ -148,7 +167,6 @@ model.present = function present(proposal) {
                 this.isLoading = false;
                 this.represent(this);
             });
-
     } else if (this.isAtSignIn()) {
         const { actionType, username, password } = proposal;
 
@@ -203,8 +221,133 @@ model.present = function present(proposal) {
         } else if (actionType === 'render') {
             this.represent(this);
         }
+    } else if (this.isAtArticleDetails()) {
+        const { actionType, username } = proposal;
+
+        if (actionType === 'follow') {
+            this.restService.follow(username, this.profile.token)
+                .then(response => {
+                    this.articleDetails.article.author.following = true;
+                    this.represent(this);
+                });
+        } else if (actionType === 'unfollow') {
+            this.restService.unfollow(username, this.profile.token)
+                .then(response => {
+                    this.articleDetails.article.author.following = false;
+                    this.represent(this);
+                });
+        } else if (actionType === 'favorite') {
+            this.restService.favorite(this.articleDetails.article.slug, this.profile.token)
+                .then(response => {
+                    const {
+                        data: {
+                            article: {
+                                favorited,
+                                favoritesCount
+                            }
+                        }
+                    } = response;
+
+                    this.articleDetails.article.favorited = favorited;
+                    this.articleDetails.article.favoritesCount = favoritesCount;
+                    this.represent(this);
+                });
+        } else if (actionType === 'unfavorite') {
+            this.restService.unfavorite(this.articleDetails.article.slug, this.profile.token)
+                .then(response => {
+                    const {
+                        data: {
+                            article: {
+                                favorited,
+                                favoritesCount
+                            }
+                        }
+                    } = response;
+
+                    this.articleDetails.article.favorited = favorited;
+                    this.articleDetails.article.favoritesCount = favoritesCount;
+                    this.represent(this);
+                });
+        }
+        else {
+            const [params] = proposal.params;
+            const slug = params.slug;
+
+            this.isLoading = true;
+            this.represent(this);
+
+            this.restService.all(
+                this.restService.getArticle(this.profile.token, slug),
+                this.restService.getComments(this.profile.token, slug)
+            )
+            .then(([articleDetails, commentData]) => {
+                this.articleDetails.article = articleDetails.data.article;
+                this.articleDetails.comments = commentData.data.comments;
+
+                this.isLoading = false;
+                this.represent(this);
+            });
+        }
+    } else if (this.isAtEditor()) {
+        const [
+            params = {}
+        ] = proposal.params || [];
+
+        const actionType = proposal.actionType;
+        const { slug = '' } = params;
+
+        if (actionType === 'render') {
+            this.represent(this);
+        } else if (actionType === 'setArticleTitle') {
+            this.editor.articleTitle = proposal.title;
+        } else if (actionType === 'setArticleDesc') {
+            this.editor.articleDesc = proposal.description;
+        } else if (actionType === 'setArticleBody') {
+            this.editor.articleBody = proposal.body;
+        } else if (actionType === 'setArticleTags') {
+            this.editor.tags = (proposal.tags || '').split(',');
+        } else if (actionType === 'publishArticle') {
+            const {
+                articleTitle,
+                articleDesc,
+                articleBody,
+                tags
+            } = this.editor;
+
+            if (!articleTitle) {
+                this.editor.errors['title'] = {
+                    message: 'Title cannot be blank'
+                };
+            }
+
+            if (!articleDesc) {
+                this.editor.errors['description'] = {
+                    message: 'Description cannot be blank'
+                };
+            }
+
+            if (!articleBody) {
+                this.editor.errors['body'] = {
+                    message: 'Article body cannot be blank'
+                };
+            }
+
+            if (Object.keys(this.editor.errors).length) {
+                return this.represent(this);
+            } else {
+                this.restService.createArticle(this.profile.token, this.editor)
+                    .then(response => {
+                        this.editor.responseArticle = response.data.article;
+                        this.represent(this, {
+                            articleCreated: true
+                        });
+                    })
+                    .catch(() => {
+                        this.editor.responseArticle = null;
+                    });
+            }
+        }
     }
-    // this.represent(this);
 };
 
 const helpers = {
@@ -216,10 +359,18 @@ const helpers = {
         return this.page === 'signin'
     },
 
+    isAtArticleDetails() {
+        return /^\/?article\/([^\/?]+)\/?$/i.test(this.page);
+    },
+
+    isAtEditor() {
+        return this.page === 'editor';
+    },
+
     getOffset(pageIndex) {
         return this.home.articlesPerPage * pageIndex;
     }
-}
+};
 
 model = Object.assign(model, helpers);
 
